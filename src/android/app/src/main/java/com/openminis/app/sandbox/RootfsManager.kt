@@ -300,10 +300,20 @@ class RootfsManager private constructor(private val context: Context) {
                 // Nameservers
                 val dnsServers = linkProps.dnsServers
                 if (dnsServers.isNotEmpty()) {
-                    for (server in dnsServers) {
-                        val addr = server.hostAddress ?: continue
+                    // minisYf: dig 报 "parse of /etc/resolv.conf failed" 就在这里。
+                    // Android 的 LinkProperties 经常给出带 zone id 的 IPv6 link-local
+                    // （fe80::1%wlan0），glibc 认，但 bind 系工具（dig/nslookup/host）
+                    // 的轻量解析器直接整份文件 parse failed —— shell 里所有 DNS 全废。
+                    // 只写能解析的：跳过带 % 的和 fe80:: 段，IPv4 排前面。
+                    val usable = dnsServers.mapNotNull { it.hostAddress }
+                        .filter { a -> a.isNotBlank() && !a.contains('%') && !a.lowercase().startsWith("fe80:") }
+                        .sortedBy { a -> if (a.contains(':')) 1 else 0 }
+                    for (addr in usable) {
                         resolvConf.append("nameserver $addr\n")
                         Log.i(TAG, "[DNS] system server: $addr")
+                    }
+                    if (usable.isEmpty()) {
+                        Log.w(TAG, "[DNS] all system servers unusable (link-local/zone): ${dnsServers.map { it.hostAddress }}")
                     }
                 }
             }

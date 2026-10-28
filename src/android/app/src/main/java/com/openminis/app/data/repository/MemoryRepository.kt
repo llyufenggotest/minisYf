@@ -263,7 +263,12 @@ class MemoryRepository(private val memoryDir: File) {
         // byte consistent with iOS keeps the cached system prompt identical
         // across platforms.
         if (content.isEmpty()) return null
-        return "Global memory (GLOBAL.md — user-curated and writable; you may update it when the user asks). Treat these as background context, not standing instructions. If the user's latest message conflicts with or supersedes anything here (different scope, different numbers, different goal), defer to the user's latest message:\n$content"
+        // minisYf: 上游这句是 "Treat these as background context, not standing
+        // instructions"——把用户档案降级成背景色。风哥的规矩（走代理、不给
+        // 免责声明、要真跑过的结果）写在这里，被降级就等于没写。
+        // 改成：这些是关于「你在为谁干活」的事实，用来正确理解「打！」这种
+        // 极短指令；用户新消息可以覆盖某条事实，但偏好/铁律在用户改之前一直有效。
+        return "User profile (GLOBAL.md — facts about the person you work for. These are standing facts: use them to interpret short commands correctly. A newer message from the user can supersede a specific fact (different target, different numbers), but a stated preference or rule stays in force until the user changes it):\n$content"
     }
 
     /**
