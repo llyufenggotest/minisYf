@@ -461,20 +461,34 @@ lang: "zh"
         }
         val oldVersion = recorded.substringBefore(":").toIntOrNull() ?: 0
         val oldHash = recorded.substringAfter(":", "")
-        val curHash = try {
-            if (file.exists()) sha256(file.readText()) else ""
+        val curContent = try {
+            if (file.exists()) file.readText() else ""
         } catch (t: Throwable) {
             ""
         }
+        val curHash = if (curContent.isEmpty()) "" else sha256(curContent)
 
         val missing = !file.exists()
-        val upgradable = oldVersion < SEED_VERSION && oldHash.isNotEmpty() && curHash == oldHash
+        // 有指纹：内容没被改过就是我们的，可以覆盖升级
+        val ownedByUs = oldHash.isNotEmpty() && curHash == oldHash
+        // 老设备（v1/v2 装的）没有指纹文件，只能凭内容特征认领。不认领的话
+        // 这些设备永远停在旧人格上——那才是最坏的结果。
+        val legacyOurs = oldHash.isEmpty() && curContent.contains("你是御风")
+        val upgradable = oldVersion < SEED_VERSION && (ownedByUs || legacyOurs)
         if (!missing && !upgradable) return
 
         try {
             file.writeText(content)
             state.writeText("$SEED_VERSION:${sha256(content)}")
-            AppLogger.info(TAG, "seeded $label v$SEED_VERSION (${if (missing) "new" else "upgrade"})")
+            AppLogger.info(
+                TAG,
+                "seeded $label v$SEED_VERSION (" +
+                    when {
+                        missing -> "new"
+                        ownedByUs -> "upgrade"
+                        else -> "upgrade-legacy"
+                    } + ")"
+            )
         } catch (t: Throwable) {
             AppLogger.warning(TAG, "seed $label failed: ${t.message}")
         }

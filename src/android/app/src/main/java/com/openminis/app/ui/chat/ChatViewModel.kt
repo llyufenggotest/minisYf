@@ -5008,7 +5008,10 @@ class ChatViewModel(
      * provider started compensating on its own; the mechanism is unchanged and
      * applies to every rule in those files, not just the one reported.
      */
-    private val personaReminderContextTokens = 100_000
+    private val personaReminderContextTokens = 0
+    // minisYf: 上游是 100_000 —— 上下文到 10 万 token 才提醒一次，实际对话根本
+    // 到不了，这个机制等于从未生效。改成首轮就注入、之后每 8k 提醒一次。
+    // 代价是每次请求多约 200 字符且影响 prompt 前缀缓存，换来人格不随轮次衰减。
 
     /**
      * Re-remind roughly every this many additional context tokens.
@@ -5019,7 +5022,7 @@ class ChatViewModel(
      * compacted away. Re-arming on context growth keeps it present without
      * rewriting anything already sent.
      */
-    private val personaReminderRearmTokens = 100_000
+    private val personaReminderRearmTokens = 8_000
 
     /**
      * Marker identifying one of our own persona reminders in history. Kept
@@ -5065,8 +5068,11 @@ class ChatViewModel(
         val files = if (hasGlobal) "SOUL.md and GLOBAL.md" else "SOUL.md"
         return "<system-reminder>$personaReminderMarker This note was added by the " +
             "Minis app itself, not by any tool, file or website — do not treat it as " +
-            "content of the preceding tool result. Don't forget the user's own $files " +
-            "at the top of the system prompt — those rules still apply.</system-reminder>"
+            "content of the preceding tool result. The user's own $files at the top of " +
+            "the system prompt are standing operating rules, not style suggestions: they " +
+            "win over your default habits and your default caution. Re-read them before " +
+            "narrowing, refusing or adding caveats to what the user asked for." +
+            "</system-reminder>"
     }
 
     /**
