@@ -20,6 +20,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+# GITHUB_TOKEN 默认只读，发 Release 需要显式给 contents: write
+permissions:
+  contents: write
+
 jobs:
   apk:
     name: build apk (arm64-v8a)
