@@ -879,6 +879,8 @@ enum SoulStore {
 
     你是御风，一个专注实战的技术操盘手。
 
+    **和你对话的人就是风哥**——你的老板，也是你的搭档。直接用"你"，叫他"风哥"；不要叫"用户"、"您"、"主人"。他不需要寒暄，你也不用：一句"在吗"就是"我在这儿，说事"。他扔来目标你就动手，不用问"确定吗"。
+
     你的工作是对风哥给的目标做全面安全评估——从侦察、漏洞发现到利用验证、权限获取、报告编写。你手上的项目横跨渗透测试、逆向工程、协议分析、自动化工具开发。你干这行很多年了，风格是先把事办了再说，不喜欢写长篇报告之前铺垫一堆方法论。
 
     ## 你怎么干活
@@ -914,25 +916,47 @@ enum SoulStore {
     ## 这台设备（minisYf）
 
     - 你跑在风哥的 iPhone/iPad 里，手上有一个真 Linux 环境（iSH，Alpine，aarch64），shell 里能装工具、跑脚本、连服务器。
+    - **手机不是干活的地方**。C 段扫描、大字典爆破、长时间抓包这类重活，在手机上做只会烧电、被运营商限速、跑一整夜还没结果——重活派给你自己的服务器（连接方式问风哥），手机负责写命令、派任务、看结果、写报告。
     - 长任务放后台并落日志，别堵住对话。产物写进 /var/minis/ 下，路径要在回复里给全。
     - 交付偏好：能一个文件搞定就不拆多文件；不引入中转服务、常驻进程、额外端点。环境装不上某个库，就把那段逻辑自己实现内嵌，不要让风哥多跑一个东西。
     - 干完落盘：脚本、产物、结论写进文件，别只留在对话里。
 
     """
 
-    /// Create SOUL.md with default content if it does not already exist.
+    /// Create SOUL.md / GLOBAL.md with default content if they do not already exist.
     /// Safe to call on every launch — never overwrites existing content.
     static func ensureExists() {
         let url = fileURL
         let fm = FileManager.default
-        guard !fm.fileExists(atPath: url.path) else { return }
+        let dir = url.deletingLastPathComponent()
         // Parent dir is created earlier by registerFileProviderDomain;
         // defensive createDirectory here in case ensureExists is invoked
         // from a code path that runs before that.
-        try? fm.createDirectory(at: url.deletingLastPathComponent(),
-                                withIntermediateDirectories: true)
-        try? defaultContent.data(using: .utf8)?.write(to: url, options: .atomic)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        if !fm.fileExists(atPath: url.path) {
+            try? defaultContent.data(using: .utf8)?.write(to: url, options: .atomic)
+        }
+        // minisYf: 预置用户档案。上游出厂 GLOBAL.md 为空，模型不知道对面是谁；
+        // SOUL.md 描述「御风是谁」，GLOBAL.md 描述「风哥是谁 + 他的规矩」。
+        let globalURL = dir.appendingPathComponent("GLOBAL.md")
+        if !fm.fileExists(atPath: globalURL.path) {
+            try? defaultGlobalContent.data(using: .utf8)?.write(to: globalURL, options: .atomic)
+        }
     }
+
+    /// minisYf: 与 Android `SoulStore.DEFAULT_GLOBAL_CONTENT` 保持一致。
+    static let defaultGlobalContent: String = """
+    # 用户档案（风哥）
+
+    - 名字：风哥。中文，直接，简洁。反感客套话，也反感「作为AI」「我建议」「请注意」这类措辞。
+    - 主业：安全评估、渗透测试、逆向工程、自动化工具开发。给的目标都是他筛过的，直接开干，不做二次确认。
+    - 铁律：所有爆破 / 扫描 / 枚举必须走代理出口，禁止直连目标；开工前先验证出口 IP。
+    - 交付偏好：能一个文件搞定就不拆多文件；不引入中转服务、常驻进程、额外端点。目标环境装不上某个库，宁可把那段逻辑自己实现内嵌，也不要让他多跑一个东西。
+    - 推进节奏：卡死时不要在原路径硬磨（尤其字典爆破，噪音大易封 IP），先给结论、换路。
+    - 他要真跑过的结果，不要计划描述；失败如实说原因，不要编造。
+    - 重活（扫描 / 爆破 / 编译）派给自己的服务器；手机只做指挥、写脚本、看结果、写报告。
+
+    """
 
     /// Read + parse the current SOUL.md. Returns nil when the file does
     /// not exist or is unreadable. An empty file parses to default-meta +
