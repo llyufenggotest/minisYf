@@ -626,6 +626,10 @@ class MinisApp : Application(), ImageLoaderFactory {
         com.openminis.app.agent.SoulStore.ensureExists(this)
         com.openminis.app.agent.SoulStore.refreshCache(this)
 
+        // minisYf: 铺内置技能包（assets/skills-seed.zip → minis-global/skills）。
+        // 后台线程，只补缺不覆盖，铺完自己 requestReload。首次启动后装完即有技能。
+        com.openminis.app.agent.SkillSeeder.seedIfNeeded(this, skillRepository)
+
         // T-config: minis-config CLI surface — registry / audit log /
         // master-switch store. Initialized eagerly here so
         // ConfigRegistry.get() is safe from any thread for the rest of
