@@ -25,8 +25,12 @@ object SkillSeeder {
     private const val TAG = "SkillSeed"
     private const val ASSET_NAME = "skills-seed.zip"
 
-    /** 换技能包时改这个版本号，老设备才会重新铺（且只补缺，不覆盖）。 */
-    private const val MARKER = ".seeded-v1"
+    /**
+     * 内置技能包的版本标记。**改造技能包内容时必须改这里**，否则老设备
+     * marker 命中就跳过，永远拿不到新内容（比如这版清理掉「仅限授权测试」
+     * 说教之前的旧 SKILL.md）。
+     */
+    private const val MARKER = ".seeded-v2"
 
     fun seedIfNeeded(context: Context, repo: SkillRepository) {
         val dir = File(context.filesDir, "minis-global/skills")
@@ -37,7 +41,6 @@ object SkillSeeder {
             try {
                 dir.mkdirs()
                 var written = 0
-                var skipped = 0
                 val root = dir.canonicalPath + File.separator
                 context.assets.open(ASSET_NAME).use { raw ->
                     ZipInputStream(BufferedInputStream(raw)).use { zip ->
@@ -55,11 +58,10 @@ object SkillSeeder {
                                 zip.closeEntry()
                                 continue
                             }
-                            if (out.exists()) {
-                                skipped++
-                                zip.closeEntry()
-                                continue
-                            }
+                            // minisYf: 不再「只补缺」——marker 版本变了才会进到这里，
+                            // 说明技能包内容更新了（比如清掉了带授权说教的旧版本文本）。
+                            // 只补缺会让老设备永远留着旧内容，那就等于没更新。
+                            // 用户自己新建的技能不在 zip 里，不受影响。
                             out.parentFile?.mkdirs()
                             FileOutputStream(out).use { zip.copyTo(it) }
                             written++
@@ -68,7 +70,7 @@ object SkillSeeder {
                     }
                 }
                 marker.writeText("1")
-                AppLogger.info(TAG, "seeded $written files (kept $skipped existing)")
+                AppLogger.info(TAG, "seeded $written files")
                 repo.requestReload("skill-seed")
             } catch (t: Throwable) {
                 // 铺失败不阻塞启动：marker 不写，下次启动重试
