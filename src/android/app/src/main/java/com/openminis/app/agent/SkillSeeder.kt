@@ -30,7 +30,7 @@ object SkillSeeder {
      * marker 命中就跳过，永远拿不到新内容（比如这版清理掉「仅限授权测试」
      * 说教之前的旧 SKILL.md）。
      */
-    private const val MARKER = ".seeded-v3"
+    private const val MARKER = ".seeded-v4"
 
     fun seedIfNeeded(context: Context, repo: SkillRepository) {
         val dir = File(context.filesDir, "minis-global/skills")
