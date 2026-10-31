@@ -110,13 +110,26 @@ jobs:
           echo "$MINISYF_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/minisyf.jks"
           test -s "$RUNNER_TEMP/minisyf.jks"
 
+      - name: Resolve version name
+        id: vn
+        run: |
+          set -euo pipefail
+          VN="${{ inputs.version_name }}"
+          if [ -z "$VN" ] && [ "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]; then
+            VN="${GITHUB_REF#refs/tags/}"
+            VN="${VN#v}"
+          fi
+          [ -n "$VN" ] || VN="1.15-yf1"
+          echo "vn=$VN" >> "$GITHUB_OUTPUT"
+          echo "resolved versionName=$VN"
+
       - name: Assemble release
         env:
           MINISYF_KEYSTORE_PATH: ${{ runner.temp }}/minisyf.jks
           MINISYF_KEYSTORE_PASSWORD: ${{ secrets.MINISYF_STORE_PASSWORD }}
           MINISYF_KEY_PASSWORD: ${{ secrets.MINISYF_KEY_PASSWORD }}
           MINISYF_KEY_ALIAS: minisyf
-          VERSION_NAME: ${{ inputs.version_name || '1.15-yf1' }}
+          VERSION_NAME: ${{ steps.vn.outputs.vn }}
         run: |
           set -euo pipefail
           cd src/android
@@ -131,7 +144,7 @@ jobs:
           mkdir -p out
           APK=$(find src/android/app/build/outputs/apk -path "*github*release*" -name "*.apk" | head -1)
           test -n "$APK" || { echo "::error::no apk produced"; exit 1; }
-          VN="${{ inputs.version_name || '1.15-yf1' }}"
+          VN="${{ steps.vn.outputs.vn }}"
           cp "$APK" "out/minisYf-${VN}.apk"
           SYM=$(find src/android/app/build/outputs -name "native-debug-symbols.zip" | head -1 || true)
           [ -n "$SYM" ] && cp "$SYM" "out/minisYf-${VN}-symbols.zip" || true
